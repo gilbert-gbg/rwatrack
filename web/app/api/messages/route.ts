@@ -40,13 +40,19 @@ export async function GET(request: NextRequest) {
     // Get list of conversations (latest message per person)
     const sent = await prisma.message.findMany({
       where: { senderId: currentUser.userId, broadcast: false },
-      include: { receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
     const received = await prisma.message.findMany({
       where: { receiverId: currentUser.userId, broadcast: false },
-      include: { sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } } },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, avatar: true, role: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -64,11 +70,11 @@ export async function GET(request: NextRequest) {
 
     // Build unique contact list
     const contactMap = new Map();
-    [...sent, ...received].forEach((msg) => {
+    [...sent, ...received].forEach((msg: any) => {
       const other = msg.senderId === currentUser.userId
-        ? msg.receiver || msg.sender
+        ? (msg.receiver ?? msg.sender)
         : msg.sender;
-      if (other && !contactMap.has(other.id)) {
+      if (other && other.id && !contactMap.has(other.id)) {
         contactMap.set(other.id, {
           user: other,
           lastMessage: msg.content,
