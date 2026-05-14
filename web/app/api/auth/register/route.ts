@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { notifyAllAdmins, createNotification } from "@/lib/notifications";
+import { sendRegistrationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      email, password, firstName, lastName, phone, role,
-      institution, department, jobTitle, nationalId,
-      homeAddress, workAddress, homeProvince, homeDistrict,
-      workProvince, workDistrict,
-    } = body;
+    const { email, password, firstName, lastName, phone, role, institution, department,
+      jobTitle, nationalId, homeAddress, workAddress, homeProvince, homeDistrict,
+      workProvince, workDistrict } = body;
 
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -45,7 +43,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (role === "WORKER") {
-      // Find matching HR
       const matchingHR = await prisma.user.findFirst({
         where: { role: "HR", status: "ACTIVE", institution, department },
         select: { id: true, firstName: true, lastName: true },
@@ -63,29 +60,24 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Notify HR
       if (matchingHR) {
-        await createNotification(
-          matchingHR.id,
-          "New Worker Registration",
-          `${firstName} ${lastName} (${email}) registered under ${institution} — ${department}. Home: ${homeAddress || "N/A"}. Please review and approve.`,
-          "REGISTRATION"
-        );
+        await createNotification(matchingHR.id, "New Worker Registration",
+          `${firstName} ${lastName} (${email}) registered under ${institution} — ${department}. Please review and approve.`,
+          "REGISTRATION");
       }
     } else if (role === "HR") {
-      await notifyAllAdmins(
-        "New HR Manager Registration",
+      await notifyAllAdmins("New HR Manager Registration",
         `${firstName} ${lastName} (${email}) registered as HR for ${institution} — ${department}. Please review and approve.`,
-        "REGISTRATION"
-      );
+        "REGISTRATION");
     }
+
+    // Send registration confirmation email
+    await sendRegistrationEmail(email.toLowerCase(), firstName, role);
 
     await prisma.auditLog.create({
       data: {
-        userId: user.id,
-        action: "REGISTER",
-        resource: "AUTH",
-        details: `${role} registration: ${institution} — ${department}. Home: ${homeDistrict || "N/A"}, ${homeProvince || "N/A"}`,
+        userId: user.id, action: "REGISTER", resource: "AUTH",
+        details: `${role} registration: ${institution} — ${department}`,
         ipAddress: request.headers.get("x-forwarded-for") || "unknown",
       },
     });
@@ -95,9 +87,6 @@ export async function POST(request: NextRequest) {
       user: { id: user.id, email: user.email, firstName, lastName, role, status: "INACTIVE" },
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 });
   }
 }

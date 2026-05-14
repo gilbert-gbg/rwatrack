@@ -37,6 +37,7 @@ export function AdminNav({ user }: NavProps) {
             { href: "/admin/approvals", label: "Approvals" },
             { href: "/admin/audit-logs", label: "Audit Logs" },
             { href: "/admin/ai-risk", label: "AI Risk" },
+            { href: "/admin/analytics", label: "Analytics" },
             { href: "/messages", label: "Messages" },
             { href: "/admin/settings", label: "Settings" },
           ].map(({ href, label }) => (

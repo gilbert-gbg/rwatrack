@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { createNotification, notifyAllAdmins } from "@/lib/notifications";
+import { createNotification } from "@/lib/notifications";
+import { sendApprovalEmail, sendRejectionEmail } from "@/lib/email";
 
 export async function GET(request: NextRequest) {
   const auth = await getCurrentUser(request);
@@ -30,7 +31,6 @@ export async function PUT(request: NextRequest) {
 
     const { userId, status, role } = await request.json();
 
-    // Get old data
     const oldUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, firstName: true, lastName: true, role: true, status: true },
@@ -41,36 +41,26 @@ export async function PUT(request: NextRequest) {
       data: { ...(status && { status }), ...(role && { role }) },
     });
 
-    // Build change description
     const changes = [];
     if (status && status !== oldUser?.status) changes.push(`Status: ${oldUser?.status} → ${status}`);
     if (role && role !== oldUser?.role) changes.push(`Role: ${oldUser?.role} → ${role}`);
     const changeText = changes.join(", ") || "User updated";
 
-    // Notify the affected user
-    await createNotification(
-      userId,
-      "Account Updated by Admin",
+    // In-app notification
+    await createNotification(userId, "Account Updated",
       `Your account has been updated: ${changeText}`,
-      status === "ACTIVE" ? "APPROVAL" : status === "SUSPENDED" ? "REJECTION" : "INFO"
-    );
+      status === "ACTIVE" ? "APPROVAL" : status === "SUSPENDED" ? "REJECTION" : "INFO");
 
-    // If HR was approved/changed, notify them specifically
-    if (updated.role === "HR" && status === "ACTIVE") {
-      await createNotification(
-        userId,
-        "HR Account Approved!",
-        `Your HR Manager account has been approved by Admin. You can now login and manage workers in your department.`,
-        "APPROVAL"
-      );
+    // Email notification for approval/rejection
+    if (status === "ACTIVE" && oldUser?.status !== "ACTIVE") {
+      await sendApprovalEmail(updated.email, updated.firstName, updated.role);
+    } else if (status === "SUSPENDED") {
+      await sendRejectionEmail(updated.email, updated.firstName);
     }
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
-        userId: auth.userId,
-        action: "UPDATE_USER",
-        resource: "USER",
+        userId: auth.userId, action: "UPDATE_USER", resource: "USER",
         details: `Admin updated ${updated.email}: ${changeText}`,
       },
     });

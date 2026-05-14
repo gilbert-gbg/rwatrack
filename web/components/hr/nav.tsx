@@ -36,6 +36,7 @@ export function HRNav({ user }: NavProps) {
             { href: "/hr/approvals", label: "Approvals" },
             { href: "/hr/location-history", label: "Location History" },
             { href: "/hr/reports", label: "Reports" },
+            { href: "/hr/attendance", label: "Attendance" },
             { href: "/messages", label: "Messages" },
           ].map(({ href, label }) => (
             <Link key={href} href={href} className="text-sm font-medium text-foreground hover:text-primary transition">

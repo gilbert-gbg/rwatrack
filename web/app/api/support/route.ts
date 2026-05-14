@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
+import { sendSupportResponseEmail } from "@/lib/email";
 
-// GET — get tickets (user sees own, admin sees all)
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
@@ -29,23 +29,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST — create a new support ticket
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
     if (!currentUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { subject, message } = await request.json();
-
-    if (!subject || !message) {
-      return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
-    }
+    if (!subject || !message) return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
 
     const ticket = await prisma.supportTicket.create({
       data: { userId: currentUser.userId, subject, message },
     });
 
-    // Notify all admins
     const user = await prisma.user.findUnique({
       where: { id: currentUser.userId },
       select: { firstName: true, lastName: true, email: true, role: true },
@@ -59,7 +54,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT — admin responds to a ticket
 export async function PUT(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
@@ -74,9 +68,20 @@ export async function PUT(request: NextRequest) {
       data: { response, status: status || "RESOLVED", respondedBy: currentUser.userId },
     });
 
-    // Notify the user who submitted
+    // Get the user who submitted the ticket
+    const ticketUser = await prisma.user.findUnique({
+      where: { id: ticket.userId },
+      select: { firstName: true, email: true },
+    });
+
+    // In-app notification
     await createNotification(ticket.userId, "Support Response",
-      `Admin responded to your request "${ticket.subject}": ${response?.substring(0, 80)}`, "INFO");
+      `Admin responded to "${ticket.subject}": ${response?.substring(0, 80)}`, "INFO");
+
+    // Email notification
+    if (ticketUser) {
+      await sendSupportResponseEmail(ticketUser.email, ticketUser.firstName, ticket.subject, response || "");
+    }
 
     return NextResponse.json(ticket);
   } catch (error) {
