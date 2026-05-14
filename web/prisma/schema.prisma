@@ -52,6 +52,21 @@ model Worker {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   hr              User?    @relation("HRWorkers", fields: [hrId], references: [id])
   locationLogs    LocationLog[]
+  attendances     Attendance[]
+}
+
+model Attendance {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  workerId         String    @db.ObjectId
+  date             String    // "2026-05-14"
+  status           String    // PRESENT, ABSENT, LATE
+  checkInTime      DateTime?
+  checkInLat       Float?
+  checkInLng       Float?
+  distanceFromWork Float?
+  createdAt        DateTime  @default(now())
+
+  worker           Worker    @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Message {
@@ -60,7 +75,7 @@ model Message {
   receiverId  String?  @db.ObjectId
   content     String
   broadcast   Boolean  @default(false)
-  broadcastTo String?  // "ALL_WORKERS" or "ALL_HR"
+  broadcastTo String?
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -73,7 +88,7 @@ model SupportTicket {
   userId      String   @db.ObjectId
   subject     String
   message     String
-  status      String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED
+  status      String   @default("OPEN")
   response    String?
   respondedBy String?
   createdAt   DateTime @default(now())

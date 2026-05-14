@@ -6,7 +6,7 @@ class AppConfig {
   // ⚠️ Change this to your computer's WiFi IP address!
   // Find it: Windows → ipconfig | Mac → ifconfig
   // DO NOT use 127.0.0.1 — that's the phone's own localhost
-  static const String serverUrl = 'http://localhost:3000';
+  static const String serverUrl = 'https://rwatrack.vercel.app';
 
   // APP CONFIGURATION
   static const String appName = 'RWATRACK';
