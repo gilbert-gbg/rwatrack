@@ -20,12 +20,6 @@ export function Footer() {
           <p className="text-xs text-muted-foreground text-center">
             &copy; {new Date().getFullYear()} RWATRACK — AI-Driven Government Employee Residence Tracking System
           </p>
-
-          {/* University info */}
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">University of Rwanda</p>
-            <p className="text-xs text-muted-foreground">School of ICT • Dept. of Information Systems</p>
-          </div>
         </div>
       </div>
     </footer>
