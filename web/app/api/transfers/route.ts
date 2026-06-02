@@ -205,13 +205,14 @@ export async function POST(request: NextRequest) {
           institution: transfer.fromInstitution,
           department: transfer.fromDepartment,
           jobTitle: transfer.worker.jobTitle || "Field Worker",
-          hrName: transfer.oldHrId ? (await prisma.user.findUnique({
-            where: { id: transfer.oldHrId },
-            select: { firstName: true, lastName: true },
-          })).firstName + " " + (await prisma.user.findUnique({
-            where: { id: transfer.oldHrId },
-            select: { firstName: true, lastName: true },
-          })).lastName : "N/A",
+          hrName: await (async () => {
+            if (!transfer.oldHrId) return "N/A";
+            const hr = await prisma.user.findUnique({
+              where: { id: transfer.oldHrId },
+              select: { firstName: true, lastName: true },
+            });
+            return hr ? `${hr.firstName} ${hr.lastName}` : "N/A";
+          })(),
           startDate: transfer.worker.createdAt,
           endDate: new Date(),
           reason: transfer.reason,
