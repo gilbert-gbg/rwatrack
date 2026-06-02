@@ -53,13 +53,50 @@ model Worker {
   hr              User?    @relation("HRWorkers", fields: [hrId], references: [id])
   locationLogs    LocationLog[]
   attendances     Attendance[]
+  workHistory     WorkHistory[]
+  transfersFrom   TransferRequest[] @relation("TransferFrom")
+}
+
+model WorkHistory {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  workerId        String   @db.ObjectId
+  institution     String
+  department      String
+  jobTitle        String
+  hrName          String?
+  startDate       DateTime
+  endDate         DateTime?
+  reason          String?
+  createdAt       DateTime @default(now())
+
+  worker          Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+}
+
+model TransferRequest {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  workerId        String   @db.ObjectId
+  fromInstitution String
+  fromDepartment  String
+  toInstitution   String
+  toDepartment    String
+  reason          String
+  status          String   @default("PENDING") // PENDING, OLD_HR_APPROVED, NEW_HR_APPROVED, COMPLETED, REJECTED
+  oldHrApproval   Boolean  @default(false)
+  newHrApproval   Boolean  @default(false)
+  dataAccessGranted Boolean @default(false) // old HR grants new HR access to worker data
+  oldHrId         String?  @db.ObjectId
+  newHrId         String?  @db.ObjectId
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  worker          Worker   @relation("TransferFrom", fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
   workerId         String    @db.ObjectId
-  date             String    // "2026-05-14"
-  status           String    // PRESENT, ABSENT, LATE
+  date             String
+  status           String
   checkInTime      DateTime?
   checkInLat       Float?
   checkInLng       Float?
